@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Apex Legends マップローテーション</title>
+<style>
+:root{
+ --bg:#0f1117;--panel:#181c24;--text:#f5f7fa;--muted:#b6bcc8;
+ --moon:#b26cff;--storm:#72d572;--olympus:#63a7ff;
+}
+*{box-sizing:border-box}
+body{
+ margin:0;padding:16px;
+ background:linear-gradient(180deg,#0b0d12,#141925);
+ color:var(--text);
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Yu Gothic UI",sans-serif;
+}
+.container{max-width:1000px;margin:auto}
+.header-card{
+ background:var(--panel);
+ border-radius:16px;
+ border:1px solid #2a3040;
+ padding:20px;
+ margin-bottom:20px;
+}
+.title{text-align:center;margin:0 0 20px}
+.top-grid{
+ display:grid;
+ grid-template-columns:1fr 1fr 1fr;
+ gap:12px;
+}
+.info-box{
+ background:#11151d;
+ border-radius:12px;
+ padding:16px;
+ text-align:center;
+}
+.label{color:var(--muted);font-size:14px;margin-bottom:8px}
+.current-map{font-size:34px;font-weight:700}
+.timer{font-size:48px;font-weight:700}
+.next-time{font-size:22px;font-weight:600}
+
+.section-title{margin:16px 0}
+
+.schedule-item{
+ background:var(--panel);
+ border-radius:16px;
+ border:1px solid #2a3040;
+ border-left:8px solid #666;
+ padding:16px;
+ margin-bottom:10px;
+}
+.current-item{box-shadow:0 0 0 2px rgba(255,255,255,.35)}
+.map-name{font-size:26px;font-weight:700;margin-bottom:8px}
+.map-time{font-size:15px;color:var(--muted);word-break:break-word}
+
+.moon{border-left-color:var(--moon)}
+.moon .map-name{color:var(--moon)}
+.storm{border-left-color:var(--storm)}
+.storm .map-name{color:var(--storm)}
+.olympus{border-left-color:var(--olympus)}
+.olympus .map-name{color:var(--olympus)}
+
+.badge{
+ font-size:13px;
+ padding:3px 8px;
+ border-radius:999px;
+ background:#ffffff22;
+}
+
+.footer{
+ margin-top:24px;
+ background:var(--panel);
+ border:1px solid #2a3040;
+ border-radius:16px;
+ padding:16px;
+}
+.footer-title{
+ font-weight:bold;
+ margin-bottom:10px;
+ color:#ddd;
+}
+.footer p{
+ margin:8px 0;
+ color:var(--muted);
+ font-size:13px;
+ line-height:1.6;
+}
+
+@media (max-width:768px){
+ body{padding:12px}
+ .top-grid{grid-template-columns:1fr;}
+ .current-map{font-size:28px}
+ .timer{font-size:38px}
+ .next-time{font-size:18px}
+ .map-name{font-size:22px}
+ .map-time{font-size:14px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header-card">
+<h1 class="title">Apex Legends マップローテーション</h1>
+
+<div class="top-grid">
+<div class="info-box">
+<div class="label">現在のマップ</div>
+<div id="currentMap" class="current-map">-</div>
+</div>
+
+<div class="info-box">
+<div class="label">残り時間</div>
+<div id="timer" class="timer">00:00:00</div>
+</div>
+
+<div class="info-box">
+<div class="label">次回切替</div>
+<div id="nextTime" class="next-time">-</div>
+</div>
+</div>
+</div>
+
+<h2 class="section-title">ローテーション一覧（現在を含めて8件）</h2>
+<div id="schedule"></div>
+
+<div class="footer">
+<div class="footer-title">注意 / Notice</div>
+
+<p>このツールは非公式のファンメイドツールです。Electronic Arts Inc. および Respawn Entertainment とは一切関係ありません。</p>
+
+<p>This tool is an unofficial fan-made project and is not affiliated with, endorsed, sponsored, or approved by Electronic Arts Inc. or Respawn Entertainment.</p>
+
+<p>Apex Legends および関連する名称・商標は各権利者に帰属します。</p>
+</div>
+
+</div>
+
+<script>
+const MAPS=[
+ {name:"ブロークンムーン",class:"moon",icon:"🟣"},
+ {name:"ストームポイント",class:"storm",icon:"🟢"},
+ {name:"オリンパス",class:"olympus",icon:"🔵"}
+];
+
+const ROTATION_MINUTES=270;
+
+// Safari(iPhone)対応
+const BASE_TIME=new Date(2026,5,11,14,0,0);
+
+function formatDate(date){
+ const week=["日","月","火","水","木","金","土"];
+ return date.getFullYear()+"/"+
+ String(date.getMonth()+1).padStart(2,"0")+"/"+
+ String(date.getDate()).padStart(2,"0")+
+ "("+week[date.getDay()]+") "+
+ String(date.getHours()).padStart(2,"0")+":"+
+ String(date.getMinutes()).padStart(2,"0");
+}
+
+function update(){
+ const now=new Date();
+
+ const elapsedMinutes=(now-BASE_TIME)/1000/60;
+ const rotationIndex=Math.floor(elapsedMinutes/ROTATION_MINUTES);
+ const currentIndex=((rotationIndex%MAPS.length)+MAPS.length)%MAPS.length;
+
+ const currentRotationStart=new Date(
+   BASE_TIME.getTime()+rotationIndex*ROTATION_MINUTES*60000
+ );
+
+ const nextRotationTime=new Date(
+   currentRotationStart.getTime()+ROTATION_MINUTES*60000
+ );
+
+ const remaining=nextRotationTime-now;
+
+ const hours=Math.floor(remaining/3600000);
+ const minutes=Math.floor((remaining%3600000)/60000);
+ const seconds=Math.floor((remaining%60000)/1000);
+
+ document.getElementById("currentMap").textContent =
+   MAPS[currentIndex].icon+" "+MAPS[currentIndex].name;
+
+ document.getElementById("timer").textContent =
+   String(hours).padStart(2,"0")+":"+
+   String(minutes).padStart(2,"0")+":"+
+   String(seconds).padStart(2,"0");
+
+ document.getElementById("nextTime").textContent =
+   formatDate(nextRotationTime);
+
+ let html="";
+
+ for(let i=0;i<8;i++){
+   const mapIndex=(currentIndex+i)%MAPS.length;
+   const map=MAPS[mapIndex];
+
+   const startTime=new Date(
+     currentRotationStart.getTime()+i*ROTATION_MINUTES*60000
+   );
+
+   const endTime=new Date(
+     startTime.getTime()+ROTATION_MINUTES*60000
+   );
+
+   html+=`
+   <div class="schedule-item ${map.class} ${i===0?'current-item':''}">
+     <div class="map-name">
+       ${map.icon} ${map.name}
+       ${i===0?'<span class="badge">現在</span>':''}
+     </div>
+     <div class="map-time">
+       ${formatDate(startTime)} ～ ${formatDate(endTime)}
+     </div>
+   </div>`;
+ }
+
+ document.getElementById("schedule").innerHTML=html;
+}
+
+update();
+setInterval(update,1000);
+</script>
+</body>
+</html>
